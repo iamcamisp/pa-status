@@ -1,0 +1,31 @@
+{
+  "ts": "2026-07-24T07:39:12Z",
+  "overall": "up",
+  "services": [
+    {
+      "key": "bot",
+      "label": "WhatsApp bot channel",
+      "state": "up",
+      "detail": "connected"
+    },
+    {
+      "key": "wacli",
+      "label": "WhatsApp sync (your messages)",
+      "state": "up",
+      "detail": "synced 38m ago"
+    },
+    {
+      "key": "ollama",
+      "label": "Memory engine (Ollama)",
+      "state": "up",
+      "detail": "up"
+    },
+    {
+      "key": "monitors",
+      "label": "Email / Calendar monitors",
+      "state": "up",
+      "detail": "email ok, calendar ok"
+    }
+  ],
+  "probe_interval_sec": 600
+}

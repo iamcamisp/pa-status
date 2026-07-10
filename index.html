@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>PA Status</title>
+<style>
+  :root{
+    --bg:#0e1116; --card:#171b22; --line:#242a33; --fg:#e6edf3; --mut:#8b949e;
+    --up:#2ea043; --warn:#d29922; --down:#f85149; --stale:#a371f7;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f8fa; --card:#fff; --line:#e2e6ea; --fg:#1f2328; --mut:#59636e; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       display:flex;justify-content:center;padding:24px}
+  .wrap{width:100%;max-width:560px}
+  h1{font-size:19px;margin:0 0 2px;display:flex;align-items:center;gap:10px}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 20px}
+  .banner{border-radius:12px;padding:14px 16px;margin-bottom:16px;font-weight:600;
+          display:flex;align-items:center;gap:12px;border:1px solid var(--line)}
+  .banner .big{font-size:22px}
+  .b-up{background:color-mix(in srgb,var(--up) 14%,transparent)}
+  .b-degraded{background:color-mix(in srgb,var(--warn) 16%,transparent)}
+  .b-down{background:color-mix(in srgb,var(--down) 16%,transparent)}
+  .b-stale{background:color-mix(in srgb,var(--stale) 16%,transparent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        overflow:hidden}
+  .row{display:flex;align-items:center;gap:12px;padding:13px 16px;
+       border-top:1px solid var(--line)}
+  .row:first-child{border-top:none}
+  .dot{width:11px;height:11px;border-radius:50%;flex:none;
+       box-shadow:0 0 0 4px color-mix(in srgb,currentColor 18%,transparent)}
+  .s-up{color:var(--up)} .s-warn{color:var(--warn)}
+  .s-down{color:var(--down)} .s-stale{color:var(--stale)}
+  .dot.s-up{background:var(--up)} .dot.s-warn{background:var(--warn)}
+  .dot.s-down{background:var(--down)} .dot.s-stale{background:var(--stale)}
+  .name{font-weight:600;flex:1}
+  .detail{color:var(--mut);font-size:13px;text-align:right}
+  .foot{color:var(--mut);font-size:12px;margin-top:16px;text-align:center}
+  .pulse{animation:p 2s ease-in-out infinite}
+  @keyframes p{50%{opacity:.45}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PA Status</h1>
+  <p class="sub">Personal-assistant service health · auto-refreshes every 30s</p>
+  <div id="banner" class="banner b-stale"><span class="big pulse">…</span><span>Loading…</span></div>
+  <div id="list" class="card"></div>
+  <p class="foot" id="foot">—</p>
+</div>
+<script>
+const STALE_MIN = 25;            // dead-man's switch: no probe in 25m ⇒ STALE
+const LABEL = {up:"All systems operational", degraded:"Degraded", down:"Outage", stale:"Monitor not reporting"};
+const ICON  = {up:"✓", degraded:"!", down:"✕", stale:"?"};
+
+function ago(iso){
+  const s = Math.max(0,(Date.now()-Date.parse(iso))/1000);
+  if(s<60) return Math.floor(s)+"s ago";
+  if(s<3600) return Math.floor(s/60)+"m ago";
+  if(s<86400) return Math.floor(s/3600)+"h ago";
+  return Math.floor(s/86400)+"d ago";
+}
+function render(d, stale){
+  const overall = stale ? "stale" : d.overall;
+  const b = document.getElementById("banner");
+  b.className = "banner b-"+overall;
+  b.innerHTML = `<span class="big s-${overall}">${ICON[overall]}</span>`+
+                `<span>${LABEL[overall]}</span>`;
+  document.getElementById("list").innerHTML = d.services.map(s=>{
+    const st = stale ? "stale" : s.state;
+    return `<div class="row"><span class="dot s-${st}"></span>`+
+           `<span class="name">${s.label}</span>`+
+           `<span class="detail">${stale ? "unknown" : s.detail}</span></div>`;
+  }).join("");
+  document.getElementById("foot").textContent =
+    (stale ? "⚠ Last probe "+ago(d.ts)+" — the monitor itself may be down. " : "")+
+    "Last checked "+ago(d.ts)+" · updates ~every "+Math.round((d.probe_interval_sec||600)/60)+" min";
+}
+async function tick(){
+  try{
+    const r = await fetch("./status.json?t="+Date.now(), {cache:"no-store"});
+    const d = await r.json();
+    const stale = (Date.now()-Date.parse(d.ts))/60000 > STALE_MIN;
+    render(d, stale);
+  }catch(e){
+    const b=document.getElementById("banner");
+    b.className="banner b-stale";
+    b.innerHTML='<span class="big s-stale">?</span><span>Status unavailable</span>';
+    document.getElementById("foot").textContent="Could not load status.json";
+  }
+}
+tick(); setInterval(tick, 30000);
+</script>
+</body>
+</html>
